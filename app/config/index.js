@@ -1,7 +1,8 @@
 'use client'
 
  import{ initializeApp } from "firebase/app";
-import { getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,GoogleAuthProvider, onAuthStateChanged  } from "firebase/auth";
+import { getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,GoogleAuthProvider, onAuthStateChanged,signOut  } from "firebase/auth";
+import { getFirestore,collection,addDoc } from "firebase/firestore";
 
     // Import the functions you need from the SDKs you need
 // TODO: Add SDKs for Firebase products that you want to use
@@ -23,12 +24,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+const db = getFirestore(app);
+
 export{
     auth,
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     provider,
     GoogleAuthProvider,
-    onAuthStateChanged
-
+    onAuthStateChanged,
+    signOut,
+    db,
+    collection,
+    addDoc
   }

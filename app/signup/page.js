@@ -1,54 +1,114 @@
 "use client";
 
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { useState } from "react";
-import { auth, provider } from "../config";
+import { useContext, useState } from "react";
+import { addDoc, collection } from "firebase/firestore";
+import { auth, db, provider } from "../config";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import axios from "axios";
+import { UsersContexts } from "../usercontext";
 
 export default function SignupUp() {
-  const router=useRouter()
-
+  const {users,setUsers}=useContext(UsersContexts)
+  console.log(users,"ye usercontext Api hai")
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [image, setImage] = useState(null);
+  const [loading, setLoading] = useState(false); 
 
-  const [userInformation, setuserInformation] = useState({
+  const [userInformation, setUserInformation] = useState({
     firstname: "",
     lastname: "",
     email: "",
     password: "",
   });
 
-  // ---------------------------
-  //  NORMAL EMAIL SIGNUP
-  // ---------------------------
-  const handlesubmit = () => {
-    createUserWithEmailAndPassword(auth, userInformation.email, userInformation.password)
-      .then((userCredential) => {
-        console.log(userCredential.user, "users");
-        router.replace("/dashboard")
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+  const cloudName = "dwwwdxicz";
+  const presetName = "frontend";
+
+  const Spinner = () => (
+    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+  );
+
+  // Upload image
+  const uploadImage = async () => {
+    if (!image) return null;
+
+    const formData = new FormData();
+    formData.append("file", image);
+    formData.append("upload_preset", presetName);
+
+    try {
+      const response = await axios.post(
+        `https://api.cloudinary.com/v1_1/${cloudName}/upload`,
+        formData
+      );
+      return response.data.secure_url;
+    } catch (err) {
+      console.error("Cloudinary upload error:", err);
+      return null;
+    }
   };
 
-  // ---------------------------
-  //  GOOGLE SIGNUP  (FIXED)
-  // ---------------------------
-  const handlesubmitGoogle = () => {
-    signInWithPopup(auth, provider)
-      .then((result) => {
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        const token = credential?.accessToken;
-        const user = result.user;
+  // MAIN SIGNUP SUBMIT
+  const handleSubmit = async () => {
+    setLoading(true); 
 
-        console.log("Google User:", user);
-        console.log("Token:", token);
-        router.replace("/dashboard")
-      })
-      .catch((error) => {
-        console.log("Google Signin Error:", error);
+    try {
+      const userCred = await createUserWithEmailAndPassword(
+        auth,
+        userInformation.email,
+        userInformation.password
+      );
+
+      const imageUrl = await uploadImage();
+
+      await addDoc(collection(db, "users"), {
+        uid: userCred.user.uid,
+        firstname: userInformation.firstname,
+        lastname: userInformation.lastname,
+        email: userInformation.email,
+        profileImage: imageUrl || "",
       });
+      router.replace("/dashboard");
+
+      setUsers({
+        uid:userCred.user.uid,
+        firstname:userInformation.firstname,
+        lastname:userInformation.lastname,
+        email:userInformation.email,
+        userprofile:imageUrl  || ""
+      })
+
+    } catch (error) {
+      console.log("Signup error:", error);
+    } finally {
+      setLoading(false); 
+    }
+  };
+
+  const handleSubmitGoogle = async () => {
+    setLoading(true);
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      await addDoc(collection(db, "users"), {
+        uid: user.uid,
+        firstname: user.displayName?.split(" ")[0] || "",
+        lastname: user.displayName?.split(" ")[1] || "",
+        email: user.email,
+        profileImage: user.photoURL,
+      });
+
+      router.replace("/dashboard");
+    } catch (err) {
+      console.log("Google Signin Error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -57,57 +117,67 @@ export default function SignupUp() {
         <h2 className="text-4xl font-bold text-white mb-2">Create an account</h2>
         <p className="text-sm text-white/60 mb-6">
           Already have an account?{" "}
-          <Link href="/login" className="underline text-white/90">
-            Login
-          </Link>
+          <Link href="/login" className="underline text-white/90">Login</Link>
         </p>
 
         <div className="space-y-4">
+
           <div className="grid grid-cols-2 gap-3">
             <input
               value={userInformation.firstname}
-              onChange={(e) => setuserInformation({ ...userInformation, firstname: e.target.value })}
+              onChange={(e) => setUserInformation({ ...userInformation, firstname: e.target.value })}
               placeholder="First name"
-              className="px-4 py-3 rounded-lg bg-[#332f37] border border-[#3b3640] placeholder-white/40 text-white focus:outline-none"
+              className="px-4 py-3 rounded-lg bg-[#332F37] border border-[#3B3640] placeholder-white/40 text-white"
             />
             <input
               value={userInformation.lastname}
-              onChange={(e) => setuserInformation({ ...userInformation, lastname: e.target.value })}
+              onChange={(e) => setUserInformation({ ...userInformation, lastname: e.target.value })}
               placeholder="Last name"
-              className="px-4 py-3 rounded-lg bg-[#332f37] border border-[#3b3640] placeholder-white/40 text-white focus:outline-none"
+              className="px-4 py-3 rounded-lg bg-[#332F37] border border-[#3B3640] placeholder-white/40 text-white"
             />
           </div>
 
           <input
             value={userInformation.email}
-            onChange={(e) => setuserInformation({ ...userInformation, email: e.target.value })}
+            onChange={(e) => setUserInformation({ ...userInformation, email: e.target.value })}
             placeholder="Email"
-            className="w-full px-4 py-3 rounded-lg bg-[#332f37] border border-[#3b3640] placeholder-white/40 text-white focus:outline-none"
+            className="w-full px-4 py-3 rounded-lg bg-[#332F37] border border-[#3B3640] text-white"
           />
 
           <div className="relative">
             <input
               value={userInformation.password}
-              onChange={(e) => setuserInformation({ ...userInformation, password: e.target.value })}
+              onChange={(e) => setUserInformation({ ...userInformation, password: e.target.value })}
               placeholder="Enter your password"
               type={showPassword ? "text" : "password"}
-              className="w-full px-4 py-3 rounded-lg bg-[#332f37] border border-[#3b3640] placeholder-white/40 text-white focus:outline-none"
+              className="w-full px-4 py-3 rounded-lg bg-[#332F37] border border-[#3B3640] text-white"
             />
-
             <button
               type="button"
               onClick={() => setShowPassword((s) => !s)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 p-1"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60"
             >
               {showPassword ? "🙈" : "👁️"}
             </button>
           </div>
 
+          <div>
+            <label className="block text-white/60 mb-1">Profile Image</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImage(e.target.files[0])}
+              className="w-full px-4 py-3 rounded-lg bg-[#332F37] border border-[#3B3640] text-white"
+            />
+          </div>
+
           <button
-            onClick={handlesubmit}
-            className="w-full mt-2 rounded-lg bg-gray-800 hover:bg-gray-700 py-3 text-white font-semibold shadow-md transition-colors"
+            onClick={handleSubmit}
+            disabled={loading}
+            className={`w-full mt-2 rounded-lg py-3 text-white font-semibold shadow-md transition-colors 
+              ${loading ? "bg-gray-700 cursor-not-allowed" : "bg-gray-800 hover:bg-gray-700"}`}
           >
-            Create account
+            {loading ? <Spinner /> : "Create account"}
           </button>
 
           <div className="flex items-center gap-3 mt-4">
@@ -117,11 +187,18 @@ export default function SignupUp() {
           </div>
 
           <button
-            onClick={handlesubmitGoogle}
+            onClick={handleSubmitGoogle}
+            disabled={loading}
             className="w-full flex items-center justify-center gap-3 rounded-lg border border-white/10 bg-transparent px-4 py-3 text-white"
           >
-            <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" />
-            Google
+            {loading ? (
+              <Spinner />
+            ) : (
+              <>
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" />
+                Google
+              </>
+            )}
           </button>
         </div>
       </div>

@@ -4,26 +4,61 @@ import { useRouter } from "next/navigation";
 import ActiveUser from "../onlineuser/page";
 import { signOut } from "firebase/auth";
 import { auth } from "../config";
+import { useContext } from "react";
+import { UsersContexts } from "../usercontext";
 
 export default function Dashboard() {
-const routers=useRouter()
-  const handlesubmit=()=>{
+  const router = useRouter();
+  const { users } = useContext(UsersContexts);
+console.log(users.userprofile ,"users image")
+  const handleLogout = () => {
     signOut(auth).then(() => {
-    routers.replace("/login")
-  })
-  }
+      router.replace("/login");
+    });
+  };
+
   return (
     <ActiveUser>
       <div className="min-h-screen bg-gray-100 p-6">
+
         {/* Top Header */}
         <header className="bg-white shadow rounded-xl p-5 mb-6 flex justify-between items-center">
           <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
-          <button 
-          onClick={()=>handlesubmit()}
-          className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition">
-    
-            Logout
-          </button>
+
+          {/* User Profile Box */}
+          <div className="flex items-center gap-4">
+
+            {/* User Image */}
+            <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200">
+              {users?.userprofile ? (
+                <img
+                  src={users.userprofile}
+                  alt="User"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-500">
+                  👤
+                </div>
+              )}
+            </div>
+
+            {/* User Name & Email */}
+            <div className="text-right">
+              <p className="font-semibold text-gray-800">
+                {users?.firstname} {users?.lastname}
+              </p>
+              <p className="text-sm text-gray-500">{users?.email}</p>
+            </div>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition"
+            >
+              Logout
+            </button>
+          </div>
         </header>
 
         {/* Stats Cards */}
